@@ -100,12 +100,14 @@ jobs:
         uses: cross-platform-actions/action@v0.25.0
         with:
           operating_system: freebsd
-          version: "14.1"
+          version: "14.2"
           run: |
             # varnish is not always present in the quarterly repo; switch to latest.
             sudo mkdir -p /usr/local/etc/pkg/repos
             printf 'FreeBSD: { url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest" }\n' \
               | sudo tee /usr/local/etc/pkg/repos/FreeBSD.conf
+            # Suppress minor OS version mismatch errors from the latest repo.
+            echo "IGNORE_OSVERSION = yes;" | sudo tee -a /usr/local/etc/pkg.conf
             sudo pkg update -f
             sudo pkg install -y \
               varnish \
