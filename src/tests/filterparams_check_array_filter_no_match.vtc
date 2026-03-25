@@ -1,0 +1,57 @@
+varnishtest "Test that a plain filter 'foo' does not match 'foo[]' or 'foo[0]' params"
+
+server s1 {
+	# req 1: foo=val kept (exact match), foo[]=val and foo[0]=val removed
+	rxreq
+	expect req.url == "/path?foo=val"
+	txresp
+
+	# req 2: nothing matches — foo[] does not satisfy plain filter 'foo'
+	rxreq
+	expect req.url == "/path"
+	txresp
+
+	# req 3: nothing matches — foo[0] does not satisfy plain filter 'foo'
+	rxreq
+	expect req.url == "/path"
+	txresp
+} -start
+
+varnish v1 -vcl+backend {
+	import std;
+	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+
+	sub vcl_hash {
+		std.syslog(180, "queryfilter before: " + req.url);
+		set req.url = queryfilter.filterparams(req.url, "foo", true);
+		std.syslog(180, "queryfilter after: " + req.url);
+	}
+} -start
+
+client c1 {
+	# Plain param matches plain filter — kept
+	txreq -url "/path?foo=val&foo[]=arr&foo[0]=indexed&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Only array params present — none should match plain filter 'foo'
+	txreq -url "/path?foo[]=first&foo[]=second&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Indexed array — should not match plain filter 'foo'
+	txreq -url "/path?foo[0]=first&foo[1]=second&remove=this"
+	rxresp
+	expect resp.status == 200
+}
+
+varnish v1 -expect n_object == 0
+varnish v1 -expect cache_miss == 0
+varnish v1 -expect cache_hit == 0
+
+client c1 -run
+delay .1
+
+varnish v1 -expect n_object == 3
+varnish v1 -expect cache_miss == 3
+varnish v1 -expect cache_hit == 0

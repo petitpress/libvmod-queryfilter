@@ -125,10 +125,12 @@ extract_array_base_name_fast(const char* param_name, size_t* base_len)
         return NULL;  /* Not an array parameter */
     }
 
-    /* Check if it ends with ']' */
+    /* Require exactly one '[...]' group at the end of the name.
+     * strchr finds the first ']', so *(end+1) != '\0' rejects anything
+     * after the bracket (e.g. "param[0][1]" or "param[]extra"). */
     const char* end = strchr(bracket, ']');
     if (!end || *(end + 1) != '\0') {
-        return NULL;  /* Not a valid array notation */
+        return NULL;  /* Not a valid single-level array notation */
     }
 
     *base_len = bracket - param_name;
@@ -145,16 +147,21 @@ extract_array_base_name_fast(const char* param_name, size_t* base_len)
 static int
 param_names_match_with_decoding(const char* filter_name, const char* param_name, unsigned arrays_enabled)
 {
-    char decoded_name[MAX_DECODED_PARAM_NAME_LEN + 1];
+    /* Each decoded byte is at most 3 encoded chars (%XX), so size the buffer
+     * for the worst-case encoded input.  This handles names where the encoded
+     * form exceeds MAX_DECODED_PARAM_NAME_LEN but the decoded form does not. */
+    char decoded_name[MAX_DECODED_PARAM_NAME_LEN * 3 + 1];
     const char* name_to_compare = param_name;
 
-    /* Always decode the parameter name for comparison; fall back to raw if it
-     * exceeds the stack buffer (names that long are pathological in practice). */
     size_t len = strlen(param_name);
-    if (len <= MAX_DECODED_PARAM_NAME_LEN) {
+    if (len <= MAX_DECODED_PARAM_NAME_LEN * 3) {
         memcpy(decoded_name, param_name, len + 1);
-        url_decode_inplace(decoded_name);
-        name_to_compare = decoded_name;
+        int decoded_len = url_decode_inplace(decoded_name);
+        /* Only use the decoded form if it fits within the comparison limit;
+         * pathologically long names fall back to raw comparison. */
+        if ((size_t)decoded_len <= MAX_DECODED_PARAM_NAME_LEN) {
+            name_to_compare = decoded_name;
+        }
     }
 
     if (!arrays_enabled) {
@@ -176,11 +183,11 @@ param_names_match_with_decoding(const char* filter_name, const char* param_name,
         return 0;
     }
 
-    /* If filter doesn't expect arrays but param is array, match base names */
+    /* If filter doesn't expect arrays but param is an array, no match.
+     * A plain filter "foo" must not implicitly absorb "foo[]" or "foo[0]";
+     * callers who want array params must include "foo[]" in the filter list. */
     if (!filter_base && param_base) {
-        size_t filter_len = strlen(filter_name);
-        return filter_len == param_base_len &&
-               strncmp(filter_name, param_base, filter_len) == 0;
+        return 0;
     }
 
     /* Both are regular parameters */

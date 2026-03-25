@@ -117,7 +117,7 @@ output URI.
 
 **What this means in practice:**
 - `items%5B0%5D=v` is matched by a filter that specifies `items[]` (arrays enabled)
-- The output still contains `items%5B0%5D=v` — nothing is re-encoded or decoded
+- The output still contains `items%5B0%5D=v` - nothing is re-encoded or decoded
 - Parameter values are never decoded; they are always copied as-is
 - Supported encodings: `%XX` (any hex pair), `+` (space in names)
 
