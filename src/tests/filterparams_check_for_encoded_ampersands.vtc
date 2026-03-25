@@ -1,0 +1,57 @@
+varnishtest "Test edge case: URL-encoded ampersands in parameter values"
+
+server s1 {
+	rxreq
+	expect req.url == "/some_path?param1=value%26with%26encoded%26amps"
+	txresp
+
+	rxreq
+	expect req.url == "/some_path?param1=value"
+	txresp
+} -start
+
+varnish v1 -vcl+backend {
+	import std;
+	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+
+	sub vcl_hash {
+		std.syslog(180, "queryfilter before: " + req.url);
+		set req.url = queryfilter.filterparams(req.url, "param1", false);
+		std.syslog(180, "queryfilter after: " + req.url);
+	}
+} -start
+
+client c1 {
+	# Test parameter value containing encoded ampersand.
+	# %26 is a literal '&' in the value; strtok_r splits on real '&' only,
+	# so the encoded ampersand does NOT split the parameter.
+	# Filtered result: /some_path?param1=value%26with%26encoded%26amps
+	txreq -url "/some_path?param1=value%26with%26encoded%26amps&remove=this&other=that"
+	rxresp
+	expect resp.status == 200
+
+	# This request has literal (unencoded) '&' in the URL, so the tokenizer
+	# splits it into: param1=value, with, encoded, amps, extra=remove.
+	# Only param1 matches the filter; filtered result: /some_path?param1=value
+	# This is a different cache object from req 1.
+	txreq -url "/some_path?other=different&param1=value&with&encoded&amps&extra=remove"
+	rxresp
+	expect resp.status == 200
+
+	# Same encoded form as req 1 (just different extra params) - should be a cache HIT.
+	# Filtered result: /some_path?param1=value%26with%26encoded%26amps
+	txreq -url "/some_path?param1=value%26with%26encoded%26amps&extra=param"
+	rxresp
+	expect resp.status == 200
+}
+
+varnish v1 -expect n_object == 0
+varnish v1 -expect cache_miss == 0
+varnish v1 -expect cache_hit == 0
+
+client c1 -run
+delay .1
+
+varnish v1 -expect n_object == 2
+varnish v1 -expect cache_miss == 2
+varnish v1 -expect cache_hit == 1

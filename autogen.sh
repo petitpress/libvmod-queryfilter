@@ -1,10 +1,10 @@
 #!/bin/sh
 
 warn() {
-	echo "WARNING: $@" 1>&2
+	echo "WARNING: $*" 1>&2
 }
 
-case `uname -s` in
+case $(uname -s) in
 Darwin)
 	LIBTOOLIZE=glibtoolize
 	;;
@@ -18,11 +18,11 @@ SunOS)
 	LIBTOOLIZE=libtoolize
 	;;
 *)
-	warn "unrecognized platform:" `uname -s`
+	warn "unrecognized platform: $(uname -s)"
 	LIBTOOLIZE=libtoolize
 esac
 
-automake_version=`automake --version | tr ' ' '\n' | egrep '^[0-9]\.[0-9a-z.-]+'`
+automake_version=$(automake --version | tr ' ' '\n' | grep -E '^[0-9]\.[0-9a-z.-]+')
 if [ -z "$automake_version" ] ; then
 	warn "unable to determine automake version"
 else

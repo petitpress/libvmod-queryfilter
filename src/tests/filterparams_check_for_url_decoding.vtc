@@ -1,0 +1,140 @@
+varnishtest "Test queryfilter vmod for comprehensive URL decoding support"
+
+server s1 {
+	# req 1: param1 + param2 kept (encoding preserved)
+	rxreq
+	expect req.url == "/some_path?param1=hello%20world&param2=test%2Bvalue"
+	txresp
+
+	# req 2: + encoding preserved verbatim
+	rxreq
+	expect req.url == "/some_path?param1=hello+world&param2=another+test"
+	txresp
+
+	# req 3: mixed encoded/plain
+	rxreq
+	expect req.url == "/some_path?param1=normal&param2=url%20encoded"
+	txresp
+
+	# req 4: %5B/%5D brackets preserved; matched via decoded name items[0]/items[1]
+	rxreq
+	expect req.url == "/some_path?items%5B0%5D=first&items%5B1%5D=second"
+	txresp
+
+	# req 5: mixed bracket styles, encoding preserved
+	rxreq
+	expect req.url == "/some_path?items%5B%5D=hello%20world&items%5B0%5D=test"
+	txresp
+
+	# req 6: various encoded values in array params
+	rxreq
+	expect req.url == "/some_path?items%5B0%5D=hello%2C%20world%21&items%5B1%5D=test%26more"
+	txresp
+
+	# req 7 (client req 7) is a cache HIT - does not reach backend
+	# req 8 (client req 8) is a cache HIT - does not reach backend
+
+	# req 9: special%2Dname%5B0%5D decodes to special-name[0], no match in filter list
+	rxreq
+	expect req.url == "/some_path"
+	txresp
+
+	# req 10: encoded brackets with non-encoded values
+	rxreq
+	expect req.url == "/some_path?items%5B%5D=normal&items%5B0%5D=url%20encoded"
+	txresp
+
+	# req 11: param1 value contains an encoded URL (embedded query params in value)
+	rxreq
+	expect req.url == "/some_path?param1=https%3A%2F%2Fexample.com%3Fid%3D123%26name%3Dtest&param2=simple"
+	txresp
+
+	# req 12: param1 value contains encoded query string
+	rxreq
+	expect req.url == "/some_path?param1=base%3Fa%3D1%26b%3D2%26c%3D3&param2=normal"
+	txresp
+} -start
+
+varnish v1 -vcl+backend {
+	import std;
+	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+
+	sub vcl_hash {
+		std.syslog(180, "queryfilter before: " + req.url);
+		set req.url = queryfilter.filterparams(req.url, "param1,param2,items[]", true);
+		std.syslog(180, "queryfilter after: " + req.url);
+	}
+} -start
+
+client c1 {
+	# Test basic URL encoded parameter names and values
+	txreq -url "/some_path?param1=hello%20world&param2=test%2Bvalue&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test URL encoded parameter with + signs
+	txreq -url "/some_path?param1=hello+world&param2=another+test&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test mix of encoded and non-encoded parameters
+	txreq -url "/some_path?param1=normal&param2=url%20encoded&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test percent-encoded brackets: %5B = [, %5D = ]
+	txreq -url "/some_path?items%5B0%5D=first&items%5B1%5D=second&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test mixed encoded brackets with values
+	txreq -url "/some_path?items%5B%5D=hello%20world&items%5B0%5D=test&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test various percent-encoded characters
+	txreq -url "/some_path?items%5B0%5D=hello%2C%20world%21&items%5B1%5D=test%26more&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# This should be a cache HIT - same filtered URL as req 1
+	txreq -url "/some_path?unwanted=param&param1=hello%20world&param2=test%2Bvalue&extra=remove"
+	rxresp
+	expect resp.status == 200
+
+	# This should be a cache HIT - same filtered URL as req 4
+	txreq -url "/some_path?other=remove&items%5B0%5D=first&items%5B1%5D=second&extra=param"
+	rxresp
+	expect resp.status == 200
+
+	# Test combination of encoded parameter names and values (unique - no filter match)
+	txreq -url "/some_path?special%2Dname%5B0%5D=value%2Dwith%2Ddashes&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test mix of encoded indexed and traditional arrays (unique)
+	txreq -url "/some_path?items%5B%5D=normal&items%5B0%5D=url%20encoded&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test URL-encoded parameter value containing embedded query parameters
+	txreq -url "/some_path?param1=https%3A%2F%2Fexample.com%3Fid%3D123%26name%3Dtest&param2=simple&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Test multiple embedded query parameters in one value
+	txreq -url "/some_path?param1=base%3Fa%3D1%26b%3D2%26c%3D3&param2=normal&remove=this"
+	rxresp
+	expect resp.status == 200
+}
+
+varnish v1 -expect n_object == 0
+varnish v1 -expect cache_miss == 0
+varnish v1 -expect cache_hit == 0
+
+client c1 -run
+delay .1
+
+varnish v1 -expect n_object == 10
+varnish v1 -expect cache_miss == 10
+varnish v1 -expect cache_hit == 2

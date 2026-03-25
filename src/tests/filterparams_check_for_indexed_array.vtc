@@ -1,0 +1,63 @@
+varnishtest "Test queryfilter vmod for indexed array notation support"
+
+server s1 {
+       rxreq
+       txresp
+       rxreq
+       txresp
+       rxreq
+       txresp
+       rxreq
+       txresp
+       rxreq
+       txresp
+} -start
+
+varnish v1 -vcl+backend {
+	import std;
+	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+
+	sub vcl_hash {
+		std.syslog(180, "queryfilter before: " + req.url);
+		set req.url = queryfilter.filterparams(req.url, "item[]", true);
+		std.syslog(180, "queryfilter after: " + req.url);
+	}
+} -start
+
+client c1 {
+	# Test indexed array notation: item[0]=value1&item[1]=value2
+	txreq -url "/some_path?item[0]=first&item[1]=second&item[2]=third&other=remove"
+	rxresp
+	expect resp.status == 200
+
+	# Test mixed array notations: item[]=value1&item[0]=value2
+	txreq -url "/some_path?item[]=first&other=remove&item[0]=second&item[]=third"
+	rxresp
+	expect resp.status == 200
+
+	# Test traditional array notation should still work
+	txreq -url "/some_path?item[]=first&item[]=second&other=remove"
+	rxresp
+	expect resp.status == 200
+
+	# This should be a cache HIT - same as first request after filtering
+	txreq -url "/some_path?other=different&item[0]=first&item[1]=second&item[2]=third&extra=params"
+	rxresp
+	expect resp.status == 200
+
+	# This should be a cache HIT - same as third request after filtering
+	txreq -url "/some_path?item[]=first&item[]=second&unwanted=param"
+	rxresp
+	expect resp.status == 200
+}
+
+varnish v1 -expect n_object == 0
+varnish v1 -expect cache_miss == 0
+varnish v1 -expect cache_hit == 0
+
+client c1 -run
+delay .1
+
+varnish v1 -expect n_object == 3
+varnish v1 -expect cache_miss == 3
+varnish v1 -expect cache_hit == 2

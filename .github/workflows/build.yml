@@ -1,0 +1,95 @@
+name: Build
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+
+jobs:
+  native-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux (Ubuntu)
+          - os: ubuntu-latest
+            name: Linux (Rocky Linux)
+            container: rockylinux:9
+          - os: macos-latest
+            name: macOS (Darwin)
+          - os: ubuntu-latest
+            name: FreeBSD
+            freebsd: true
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container || null }}
+    name: Native / ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ubuntu
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux' && !matrix.freebsd && !matrix.container
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            varnish-dev \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            libpcre3-dev \
+            python3-docutils
+
+      # Rocky Linux
+      - name: Install dependencies (Rocky Linux)
+        if: matrix.container == 'rockylinux:9'
+        run: |
+          dnf install -y epel-release
+          dnf install -y \
+            varnish-devel \
+            autoconf \
+            automake \
+            libtool \
+            pkgconfig \
+            pcre-devel \
+            python3-docutils
+
+      # macOS
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            varnish \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            pcre
+
+      # Ubuntu + Rocky Linux + macOS native build
+      - name: Build and test
+        if: "!matrix.freebsd"
+        run: |
+          ./autogen.sh
+          ./configure && make && make check
+
+      # FreeBSD via cross-platform-actions/action (QEMU VM on ubuntu runner)
+      - name: Build and test
+        if: matrix.freebsd
+        uses: cross-platform-actions/action@v0.25.0
+        with:
+          operating_system: freebsd
+          version: "14.1"
+          run: |
+            sudo pkg install -y \
+              varnish \
+              autoconf \
+              automake \
+              libtool \
+              pkgconf \
+              pcre
+            ./autogen.sh
+            ./configure && make && make check
