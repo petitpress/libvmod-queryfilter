@@ -5,16 +5,16 @@
 
    Usage:
    ```bash
-   # Use default versions (6.0.14, 7.6.3, 7.7.1)
+   # Use default versions (6.0.17, 7.6.5, 7.7.3, 8.0.1)
    ./util/docker-tests.sh
 
    # Test single version
-   VARNISH_VERSIONS=7.6.3 ./util/docker-tests.sh
+   VARNISH_VERSIONS=8.0.1 ./util/docker-tests.sh
 
    # Test multiple versions (space-separated string)
-   VARNISH_VERSIONS="7.6.2 7.7.0" ./util/docker-tests.sh
+   VARNISH_VERSIONS="6.0.17 8.0.1" ./util/docker-tests.sh
 
    # Using export also works
-   export VARNISH_VERSIONS="7.6.3 7.7.1"
+   export VARNISH_VERSIONS="6.0.17 8.0.1"
    ./util/docker-tests.sh
    ```

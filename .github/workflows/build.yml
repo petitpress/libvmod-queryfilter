@@ -14,7 +14,7 @@ jobs:
       matrix:
         # To add a new Varnish version, append it here.
         # The packagecloud repo is derived as varnishXY (e.g. "7.6" -> "varnish76").
-        varnish_version: ["6.4", "7.6", "7.7"]
+        varnish_version: ["7.6", "7.7", "8.0"]
         distro:
           - name: Ubuntu
             runner: ubuntu-latest
@@ -32,13 +32,19 @@ jobs:
         run: |
           VERSION_SHORT=$(echo "${{ matrix.varnish_version }}" | tr -d '.')
           curl -s "https://packagecloud.io/install/repositories/varnishcache/varnish${VERSION_SHORT}/script.deb.sh" | sudo bash
+          # libpcre3-dev was dropped in Ubuntu 24.04 (Noble); fetch debs from Debian
+          # Bookworm via Docker (same approach used in the project Dockerfile).
+          docker run --rm -v /tmp/pcre3:/out debian:bookworm-slim \
+            bash -c 'apt-get update -qq && apt-get download -q \
+              libpcre3 libpcre3-dev libpcre16-3 libpcre32-3 libpcrecpp0v5 \
+              && mv *.deb /out/'
+          sudo dpkg -i /tmp/pcre3/*.deb
           sudo apt-get install -y \
             varnish-dev \
             autoconf \
             automake \
             libtool \
             pkg-config \
-            libpcre3-dev \
             python3-docutils
 
       - name: Install dependencies (Rocky Linux)
@@ -61,8 +67,8 @@ jobs:
           ./autogen.sh
           ./configure && make && make check
 
-  # macOS and FreeBSD install whatever Varnish version is current in their
-  # respective package managers - version pinning isn't supported there.
+  # macOS and FreeBSD install current Varnish version from their
+  # respective package managers - version pinning is not supported.
   macos-build:
     runs-on: macos-latest
     name: Native / macOS (Darwin)
@@ -96,6 +102,11 @@ jobs:
           operating_system: freebsd
           version: "14.1"
           run: |
+            # varnish is not always present in the quarterly repo; switch to latest.
+            sudo mkdir -p /usr/local/etc/pkg/repos
+            printf 'FreeBSD: { url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest" }\n' \
+              | sudo tee /usr/local/etc/pkg/repos/FreeBSD.conf
+            sudo pkg update -f
             sudo pkg install -y \
               varnish \
               autoconf \

@@ -2,7 +2,7 @@
 set -eo pipefail
 repodir="$( cd "${0%/*}"/.. || return ; echo "${PWD}" )"
 
-DEFAULT_VARNISH_VERSIONS="6.0.14 7.6.3 7.7.1"
+DEFAULT_VARNISH_VERSIONS="6.0.17 7.6.5 7.7.3 8.0.1"
 VARNISH_VERSIONS="${VARNISH_VERSIONS:-$DEFAULT_VARNISH_VERSIONS}"
 
 queryfilter_test() {

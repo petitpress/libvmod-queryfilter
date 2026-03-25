@@ -19,11 +19,12 @@ RUN apt-get update && \
 #-------------------------------------------------------------------------------
 # vmod-queryfilter-dev-base: tooling required to build varnish + vmod
 #-------------------------------------------------------------------------------
-FROM gcc:latest AS vmod-queryfilter-dev-base
+FROM gcc:14 AS vmod-queryfilter-dev-base
 
 COPY --from=pcre3-debs /*.deb /tmp/pcre3/
 RUN apt-get update && \
 	apt-get install -y \
+		git \
 		python3-docutils \
 		python3-sphinx \
 		pkg-config && \
@@ -33,17 +34,17 @@ RUN apt-get update && \
 #-------------------------------------------------------------------------------
 # vmod-queryfilter-varnish: fresh varnish install from source
 #-------------------------------------------------------------------------------
-ARG VARNISH_VERSION=7.6.3
+ARG VARNISH_VERSION=8.0.1
 FROM vmod-queryfilter-dev-base AS vmod-queryfilter-varnish
 ENV VARNISH_VERSION=${VARNISH_VERSION}
-ENV VARNISHSRC=/src/varnish-cache-varnish-${VARNISH_VERSION}
+ENV VARNISHSRC=/src/varnish-${VARNISH_VERSION}
 
-# Download and prep source:
-RUN mkdir -p /src && \
-	cd /src && \
-	wget https://github.com/varnishcache/varnish-cache/archive/refs/tags/varnish-${VARNISH_VERSION}.tar.gz && \
-	tar -xzf varnish-${VARNISH_VERSION}.tar.gz && \
-	cd varnish-cache-varnish-${VARNISH_VERSION} && \
+# Clone source with submodules (archive tarballs omit them, breaking configure):
+RUN git clone --recursive \
+		--branch varnish-${VARNISH_VERSION} \
+		https://code.vinyl-cache.org/vinyl-cache/vinyl-cache.git \
+		${VARNISHSRC} && \
+	cd ${VARNISHSRC} && \
 	./autogen.sh && \
 	./configure \
 		--prefix=/usr/local && \

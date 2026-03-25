@@ -13,9 +13,10 @@ jobs:
     strategy:
       matrix:
         varnish_version:
-          - "6.0.14"
-          - "7.6.3"
-          - "7.7.1"
+          - "6.0.17"
+          - "7.6.5"
+          - "7.7.3"
+          - "8.0.1"
     name: Varnish ${{ matrix.varnish_version }}
     steps:
       - uses: actions/checkout@v6

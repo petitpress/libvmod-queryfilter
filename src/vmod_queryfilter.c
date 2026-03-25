@@ -42,8 +42,8 @@ typedef struct sess req_ctx;
 typedef const struct vrt_ctx req_ctx;
 #endif /* (VARNISH_API_MAJOR == 4 || VARNISH_API_MAJOR == 5 ) */
 
-/*--- Varnish 6.x and 7.x ---*/
-#if (VARNISH_API_MAJOR == 6 || VARNISH_API_MAJOR == 7)
+/*--- Varnish 6.x, 7.x and 8.x ---*/
+#if (VARNISH_API_MAJOR == 6 || VARNISH_API_MAJOR == 7 || VARNISH_API_MAJOR == 8)
 #include "cache/cache.h"
 #include "vcl.h"
 #include "vre.h"
@@ -51,13 +51,20 @@ typedef const struct vrt_ctx req_ctx;
 #include "vsb.h"
 #include "vcc_if.h"
 typedef const struct vrt_ctx req_ctx;
-#endif /* (VARNISH_API_MAJOR == 6 || VARNISH_API_MAJOR == 7) */
+#endif /* (VARNISH_API_MAJOR == 6 || VARNISH_API_MAJOR == 7 || VARNISH_API_MAJOR == 8) */
 
 /* WS_Reserve was deprecated in Varnish 6.3.0: */
 #if (VARNISH_API_MAJOR < 6) || (VARNISH_API_MAJOR == 6 && VARNISH_API_MINOR < 3)
 #define WS_ReserveAll(ws) \
     WS_Reserve(ws, 0)
 #endif /* Varnish Version >= 6.3 */
+
+/* WS_Reservation() was introduced in Varnish 6.4 to replace direct ws->f
+ * access (WS_Front() was removed in 7.0). For Varnish < 6.4, define a shim
+ * via the still-public ws->f member. */
+#if (VARNISH_API_MAJOR < 6) || (VARNISH_API_MAJOR == 6 && VARNISH_API_MINOR < 4)
+#define WS_Reservation(ws) ((ws)->f)
+#endif
 
 
 /** Alignment macros ala varnish internals: */
@@ -317,7 +324,7 @@ vmod_filterparams(req_ctx* sp, const char* uri, const char* params_in, unsigned 
     /* Reserve the *rest* of the workspace - it's okay, we're gonna release
      * almost all of it in the end ;) */
     ws_remain = WS_ReserveAll(workspace);
-    ws_free = workspace->f;
+    ws_free = WS_Reservation(workspace);
 
     /* Duplicate the URI, bailing on OOM: */
     new_uri = strtmp_append(&ws_free, &ws_remain, uri);
