@@ -110,7 +110,7 @@ jobs:
             echo "IGNORE_OSVERSION = yes;" | sudo tee -a /usr/local/etc/pkg.conf
             sudo pkg update -f
             sudo pkg install -y \
-              varnish \
+              varnish7 \
               autoconf \
               automake \
               libtool \
