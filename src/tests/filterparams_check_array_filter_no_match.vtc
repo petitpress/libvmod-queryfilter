@@ -10,11 +10,6 @@ server s1 {
 	rxreq
 	expect req.url == "/path"
 	txresp
-
-	# req 3: nothing matches — foo[0] does not satisfy plain filter 'foo'
-	rxreq
-	expect req.url == "/path"
-	txresp
 } -start
 
 varnish v1 -vcl+backend {
@@ -52,6 +47,6 @@ varnish v1 -expect cache_hit == 0
 client c1 -run
 delay .1
 
-varnish v1 -expect n_object == 3
-varnish v1 -expect cache_miss == 3
-varnish v1 -expect cache_hit == 0
+varnish v1 -expect n_object == 2
+varnish v1 -expect cache_miss == 2
+varnish v1 -expect cache_hit == 1

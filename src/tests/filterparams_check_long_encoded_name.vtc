@@ -7,7 +7,7 @@ varnishtest "Test URL decoding of param names whose encoded form exceeds 255 byt
 # is kept because decoding is not skipped just because encoded > 255.
 #
 # Filter name (86 a's):
-#   aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+#   aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # Encoded param name (86 x %61):
 #   %61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61
 
@@ -24,7 +24,7 @@ varnish v1 -vcl+backend {
 
 	sub vcl_hash {
 		std.syslog(180, "queryfilter before: " + req.url);
-		set req.url = queryfilter.filterparams(req.url, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", false);
+		set req.url = queryfilter.filterparams(req.url, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", false);
 		std.syslog(180, "queryfilter after: " + req.url);
 	}
 } -start
