@@ -115,6 +115,7 @@ jobs:
               automake \
               libtool \
               pkgconf \
-              pcre
+              pcre \
+              python3
             ./autogen.sh
             ./configure && make && make check
