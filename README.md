@@ -51,12 +51,77 @@ import queryfilter;
 set req.url = queryfilter.filterparams(req.url, "id,q,vals[]", true);
 ```
 
+### Examples
+
+#### Basic Parameter Filtering
+```
+# Input:  /path?a=1&b=2&c=3&d=4
+# Filter: "a,c"
+# Output: /path?a=1&c=3
+```
+
+#### Traditional Array Notation
+```
+# Input:  /path?item[]=first&item[]=second&other=remove
+# Filter: "item[]" (with arrays enabled)
+# Output: /path?item[]=first&item[]=second
+```
+
+#### Indexed Array Notation
+```
+# Input:  /path?item[0]=first&item[1]=second&other=remove
+# Filter: "item[]" (with arrays enabled)
+# Output: /path?item[0]=first&item[1]=second
+```
+
+#### Mixed Array Notations
+```
+# Input:  /path?item[]=first&item[0]=second&item[]=third
+# Filter: "item[]" (with arrays enabled)
+# Output: /path?item[]=first&item[0]=second&item[]=third
+```
+
+#### URL-Encoded Parameters
+```
+# Input:  /path?param=hello%20world&other=test%2Bvalue
+# Filter: "param"
+# Output: /path?param=hello%20world
+# Note: percent-encoding is preserved verbatim in the output URI
+```
+
+#### URL-Encoded Array Brackets
+```
+# Input:  /path?items%5B0%5D=first&items%5B1%5D=second
+# Filter: "items[]" (with arrays enabled)
+# Output: /path?items%5B0%5D=first&items%5B1%5D=second
+# Note: %5B = '[', %5D = ']'; decoding is used only for name matching,
+#       the original encoding is kept in the output URI
+```
+
 #### Query Arrays
 When query arrays are disabled, libvmod-queryfilter assumes query parameters are
 individual name/value pairs (e.g. `a=1&b=2...`). Support for arrays in query
 parameters - e.g. `a[]=1&a[]=2...` or `a[0]=1&a[1]=2...` - can be enabled by passing `true` for the `arrays_enabled`
 argument. When this option is enabled, array parameters will be
 preserved - in order - in the output URI.
+
+The module supports both traditional array notation (`item[]=value`) and
+indexed array notation (`item[0]=value`, `item[1]=value`, etc.). Both notations
+can be mixed in the same query string and will be properly filtered when arrays
+are enabled.
+
+#### URL Decoding
+The module decodes URL-encoded parameter *names* before comparing them against
+the filter list. This includes both percent-encoding (e.g., `%5B` → `[`) and
+plus-encoding (e.g., `+` → space). The decoded name is used **only for
+matching**; the original percent-encoded form is preserved verbatim in the
+output URI.
+
+**What this means in practice:**
+- `items%5B0%5D=v` is matched by a filter that specifies `items[]` (arrays enabled)
+- The output still contains `items%5B0%5D=v` - nothing is re-encoded or decoded
+- Parameter values are never decoded; they are always copied as-is
+- Supported encodings: `%XX` (any hex pair), `+` (space in names)
 
 Building
 --------
@@ -80,7 +145,7 @@ simply invoke:
 ```
 (See `./configure --help` for configure-time options)
 
-This vmod can also be compiled against a pre-built Varnish Cache 3.x/4.x/5.x/6.x/7.x
+This vmod can also be compiled against a pre-built Varnish Cache 3.x/4.x/5.x/6.x/7.x/8.x
 source by indicating the path to the (pre-compiled!) varnish source using the
 `VARNISHSRC` configuration variable, like so:
 

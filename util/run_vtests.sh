@@ -1,13 +1,12 @@
 #!/bin/bash
-if [ -z "${VARNISHSRC}" -o ! -d ${VARNISHSRC} ] ; then
-    echo "Usage: VARNISHSRC=<path to varnish source> $(basename $0) TEST"
+if [[ -z "${VARNISHSRC}" || ! -d "${VARNISHSRC}" ]] ; then
+    echo "Usage: VARNISHSRC=<path to varnish source> $(basename "$0") TEST"
     exit 1
 fi
 
-${VARNISHSRC}/bin/varnishtest/varnishtest \
-    -Dvarnish_source=${VARNISHSRC} \
-    -Dvarnishd=${VARNISHSRC}/bin/varnishd/varnishd \
-    -Dvmod_topbuild=$(pwd) $*
+"${VARNISHSRC}/bin/varnishtest/varnishtest" \
+    -Dvarnish_source="${VARNISHSRC}" \
+    -Dvarnishd="${VARNISHSRC}/bin/varnishd/varnishd" \
+    -Dvmod_topbuild="$(pwd)" "$@"
 
 # EOF
-

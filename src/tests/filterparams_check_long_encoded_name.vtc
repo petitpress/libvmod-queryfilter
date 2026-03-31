@@ -1,0 +1,54 @@
+varnishtest "Test URL decoding of param names whose encoded form exceeds 255 bytes"
+
+# The param name is 86 'a' characters encoded as %61 each.
+# Encoded length: 86 * 3 = 258 bytes  (> MAX_DECODED_PARAM_NAME_LEN = 255)
+# Decoded length: 86 bytes             (<= MAX_DECODED_PARAM_NAME_LEN)
+# The filter contains the plain 86-char name.  Correct behaviour: the param
+# is kept because decoding is not skipped just because encoded > 255.
+#
+# Filter name (86 a's):
+#   aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+# Encoded param name (86 x %61):
+#   %61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61
+
+server s1 {
+	# req 1: encoded param kept (encoding preserved in output URL)
+	rxreq
+	expect req.url == "/path?%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61=value"
+	txresp
+} -start
+
+varnish v1 -vcl+backend {
+	import std;
+	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+
+	sub vcl_hash {
+		std.syslog(180, "queryfilter before: " + req.url);
+		set req.url = queryfilter.filterparams(req.url, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", false);
+		std.syslog(180, "queryfilter after: " + req.url);
+	}
+} -start
+
+client c1 {
+	# Encoded param name (258 encoded bytes -> 86 decoded bytes) must be kept.
+	# A second extra param is removed to confirm filtering is active.
+	txreq -url "/path?%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61=value&remove=this"
+	rxresp
+	expect resp.status == 200
+
+	# Same filtered URL — cache HIT (different extra params, same result)
+	txreq -url "/path?other=junk&%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61%61=value"
+	rxresp
+	expect resp.status == 200
+}
+
+varnish v1 -expect n_object == 0
+varnish v1 -expect cache_miss == 0
+varnish v1 -expect cache_hit == 0
+
+client c1 -run
+delay .1
+
+varnish v1 -expect n_object == 1
+varnish v1 -expect cache_miss == 1
+varnish v1 -expect cache_hit == 1

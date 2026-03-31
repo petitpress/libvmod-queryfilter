@@ -50,3 +50,9 @@ vmod_queryfilter.3
 
 # Things not to ignore
 !m4/ax_*
+
+# AI - commit skills (except gitnexus), ignore everything else
+.claude/*
+!.claude/skills/
+.claude/skills/gitnexus/
+.gitnexus/
