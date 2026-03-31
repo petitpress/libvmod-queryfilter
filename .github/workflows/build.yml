@@ -18,6 +18,11 @@ jobs:
           - { name: Rocky, runner: ubuntu-latest, container: rockylinux:9 }
           - { name: macOS, runner: macos-latest }
           - { name: FreeBSD, runner: ubuntu-latest }
+        exclude:
+          # Varnish 7.7.3 uses endian.h which does not exist on macOS (uses machine/endian.h instead).
+          # Upstream issue: https://github.com/varnishcache/varnish-cache/issues/4299
+          - varnish: "7.7.3"
+            platform: { name: macOS, runner: macos-latest }
     runs-on: ${{ matrix.platform.runner }}
     container: ${{ matrix.platform.container }}
     name: ${{ matrix.platform.name }} / Varnish ${{ matrix.varnish }}
