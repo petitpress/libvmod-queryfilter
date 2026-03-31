@@ -1,6 +1,8 @@
 libvmod-queryfilter
 ===================
 
+> **Note:** This is an actively maintained community fork of the original [nytimes/libvmod-queryfilter](https://github.com/nytimes/libvmod-queryfilter). The original project by The New York Times Company is no longer maintained. All new development, bug fixes, and Varnish compatibility updates are managed here by [Petit Press](https://github.com/petitpress/libvmod-queryfilter).
+
 Overview
 --------
 This is a simple VMOD for [Varnish Cache](https://www.varnish-cache.org/) which
@@ -22,12 +24,13 @@ combination of parameter names and values.
 
 LICENSE
 -------
+Copyright © 2026 Petit Press, a.s.
 Copyright © 2014-2020 The New York Times Company.
 Licensed under the Apache 2.0 License. See [LICENSE](./LICENSE) for more information.
 
 See the [NOTICE](./NOTICE) file for a list of contributors.
 
-(To list individual developers, try `git shortlog -s` or [this page](https://github.com/NYTimes/libvmod-queryfilter/graphs/contributors)).
+(To list individual developers, try `git shortlog -s` or [this page](https://github.com/petitpress/libvmod-queryfilter/graphs/contributors)).
 
 Usage
 -----
@@ -98,8 +101,7 @@ set req.url = queryfilter.filterparams(req.url, "id,q,vals[]", true);
 #### Query Arrays
 When query arrays are disabled, libvmod-queryfilter assumes query parameters are
 individual name/value pairs (e.g. `a=1&b=2...`). Support for arrays in query
-parameters - e.g. `a[]=1&a[]=2...` or `a[0]=1&a[1]=2...` (see [this Stackoverflow Question](http://stackoverflow.com/questions/6243051/how-to-pass-an-array-within-a-query-string) or [Issue #2](https://github.com/NYTimes/libvmod-queryfilter/issues/2)
-for more examples) can be enabled by passing `true` for the `arrays_enabled`
+parameters - e.g. `a[]=1&a[]=2...` or `a[0]=1&a[1]=2...` - can be enabled by passing `true` for the `arrays_enabled`
 argument. When this option is enabled, array parameters will be
 preserved - in order - in the output URI.
 
@@ -143,7 +145,7 @@ simply invoke:
 ```
 (See `./configure --help` for configure-time options)
 
-This vmod can also be compiled against a pre-built Varnish Cache 3.x/4.x/5.x/6.x
+This vmod can also be compiled against a pre-built Varnish Cache 3.x/4.x/5.x/6.x/7.x
 source by indicating the path to the (pre-compiled!) varnish source using the
 `VARNISHSRC` configuration variable, like so:
 
