@@ -82,7 +82,7 @@ jobs:
           ./autogen.sh
           ./configure --prefix=/usr/local
           make
-          make install
+          sudo make install
 
       - name: Build and test
         if: "matrix.platform.name != 'FreeBSD'"
@@ -139,4 +139,4 @@ jobs:
           sync_files: false
           run: |
             ./autogen.sh
-            ./configure && make && make check
+            PKG_CONFIG_PATH=/usr/local/lib/pkgconfig ./configure && make && make check
