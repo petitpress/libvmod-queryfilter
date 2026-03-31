@@ -145,7 +145,7 @@ simply invoke:
 ```
 (See `./configure --help` for configure-time options)
 
-This vmod can also be compiled against a pre-built Varnish Cache 3.x/4.x/5.x/6.x/7.x
+This vmod can also be compiled against a pre-built Varnish Cache 3.x/4.x/5.x/6.x/7.x/8.x
 source by indicating the path to the (pre-compiled!) varnish source using the
 `VARNISHSRC` configuration variable, like so:
 
