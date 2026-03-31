@@ -67,8 +67,8 @@ jobs:
           ./autogen.sh
           ./configure && make && make check
 
-  # macOS and FreeBSD install current Varnish version from their
-  # respective package managers - version pinning is not supported.
+  # macOS installs a pinned Varnish version via versioned Homebrew formula.
+  # Varnish 9.x (the current unversioned `brew install varnish`) is not yet supported.
   macos-build:
     runs-on: macos-latest
     name: Native / macOS (Darwin)
@@ -77,8 +77,12 @@ jobs:
 
       - name: Install dependencies (macOS)
         run: |
+          # varnish@8 is a keg-only formula; fall back to varnish@7 if unavailable.
+          brew install varnish@8 2>/dev/null || brew install varnish@7
+          VARNISH_PREFIX="$(brew --prefix varnish@8 2>/dev/null || brew --prefix varnish@7)"
+          echo "PKG_CONFIG_PATH=${VARNISH_PREFIX}/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
+          echo "${VARNISH_PREFIX}/bin" >> "$GITHUB_PATH"
           brew install \
-            varnish \
             autoconf \
             automake \
             libtool \
