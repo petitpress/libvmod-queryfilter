@@ -67,7 +67,9 @@ jobs:
             pkg-config \
             pcre \
             pcre2 \
-            docutils
+            docutils \
+            sphinx-doc
+          echo "$(brew --prefix sphinx-doc)/bin" >> "$GITHUB_PATH"
 
       - name: Build and install Varnish from source
         if: "matrix.platform.name == 'macOS'"
@@ -106,6 +108,7 @@ jobs:
               pcre2 \
               python3 \
               py311-docutils \
+              py311-sphinx \
               git
 
       - name: Build and install Varnish from source (FreeBSD)
