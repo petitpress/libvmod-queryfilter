@@ -1,8 +1,13 @@
 libvmod-queryfilter
+Copyright © 2026 Petit Press, a.s.
 Copyright © 2014-2020 The New York Times Company
 
-This product includes software developed at The New York Times Company
-(http://www.nytimes.com/, https://github.com/nytimes).
+This product includes software originally developed at The New York Times Company
+(http://www.nytimes.com/, https://github.com/nytimes/libvmod-queryfilter).
+
+This is an actively maintained community fork. The upstream repository is no longer
+maintained. This fork is maintained by Petit Press, a.s.
+(https://github.com/petitpress/libvmod-queryfilter).
 
 Portions of this software were developed at the Norsk Rikskringkasting AS
 (https://www.nrk.no/).
