@@ -1,6 +1,13 @@
 # Changelog
 
-## [1.1.0] - 2026-03-31 — Petit Press Fork
+## [1.0.1] - 2026-04-09
+
+### Bugfixes
+- Fix: scalar params with `arrays_enabled=true` now deduplicate on first match (same as `arrays_enabled=false`)
+
+---
+
+## [1.0.0] - 2026-03-31 — Petit Press Fork
 
 > This fork is maintained by [Petit Press, a.s.](https://github.com/petitpress/libvmod-queryfilter).
 > Forked from [nytimes/libvmod-queryfilter](https://github.com/nytimes/libvmod-queryfilter) (last upstream release: v1.0.1, 2023-01-09).

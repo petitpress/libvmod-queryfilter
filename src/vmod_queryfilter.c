@@ -397,13 +397,11 @@ vmod_filterparams(req_ctx* sp, const char* uri, const char* params_in, unsigned 
             /* After the first param, swap the separator: */
             sep = '&';
 
-            /* If arrays are not enabled (default), we just break after the
-             * first match to avoid unnecessary checks. However, for arrays it
-             * is necessary to keep iterating through the list to find
-             * additional matches. A side effect of this is that all elements of
-             * a given array will be rewritten in sequence next to each other in
-             * the output array: */
-            if( !arrays_enabled ) {
+            /* Scalar filters break after the first match so that duplicate
+             * params (e.g. ?date=old&date=new) are deduplicated to a stable
+             * cache key.  Array filters (e.g. urls[]) must keep iterating to
+             * collect all elements. */
+            if( !arrays_enabled || strchr(filter_name, '[') == NULL ) {
                 break;
             }
         };
