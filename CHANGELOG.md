@@ -4,6 +4,7 @@
 
 ### Bugfixes
 - Fix: scalar params with `arrays_enabled=true` now deduplicate on first match (same as `arrays_enabled=false`)
+- Fix: commit null terminator in `WS_Release` to prevent spurious cache misses on Varnish 6
 
 ---
 

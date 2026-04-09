@@ -408,7 +408,12 @@ vmod_filterparams(req_ctx* sp, const char* uri, const char* params_in, unsigned 
     };
 
 release_okay:
-    WS_Release(workspace, (new_uri_end-new_uri));
+    /* Include the null terminator in the release (+1).  sprintf writes '\0'
+     * at new_uri_end but doesn't count it, so without +1 ws->f lands on that
+     * byte and the next workspace allocation (e.g. a VCL syslog string concat)
+     * overwrites it. hash_data() then walks past the intended end of req.url
+     * and produces an inconsistent hash, causing spurious cache misses. */
+    WS_Release(workspace, (new_uri_end-new_uri) + 1);
     return new_uri;
 
 release_bail:
