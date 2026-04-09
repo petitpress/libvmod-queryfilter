@@ -1,0 +1,54 @@
+varnishtest "Test queryfilter vmod: scalar duplicate deduplication with arrays_enabled=true"
+
+# Verifies that scalar filters use first-wins deduplication even when
+# arrays_enabled=true, while array filters still collect all occurrences.
+# This is the mixed-filter production scenario: e.g. "date,id,urls[]".
+
+server s1 {
+	# req 1: date deduped to first value; both urls[] kept
+	rxreq
+	expect req.url == "/archive?date=2016-08-14&urls[]=foo&urls[]=bar"
+	txresp
+
+	# req 2: date=2016-08-14 (same first value, different trailing) - cache HIT
+	# req 3: same - cache HIT
+} -start
+
+varnish v1 -vcl+backend {
+	import std;
+	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+
+	sub vcl_hash {
+		std.syslog(180, "queryfilter before: " + req.url);
+		set req.url = queryfilter.filterparams(req.url, "date,urls[]", true);
+		std.syslog(180, "queryfilter after: " + req.url);
+	}
+} -start
+
+client c1 {
+	# Duplicate scalar: first date wins; array: both urls[] kept
+	txreq -url "/archive?date=2016-08-14&date=2016-08-10&urls[]=foo&urls[]=bar"
+	rxresp
+	expect resp.status == 200
+
+	# Different trailing date, same leading - scalar dedupes to same key -> cache HIT
+	txreq -url "/archive?date=2016-08-14&date=2025-03-25&urls[]=foo&urls[]=bar"
+	rxresp
+	expect resp.status == 200
+
+	# Three duplicate dates - still first wins -> cache HIT
+	txreq -url "/archive?date=2016-08-14&date=2020-01-01&date=2021-06-15&urls[]=foo&urls[]=bar"
+	rxresp
+	expect resp.status == 200
+}
+
+varnish v1 -expect n_object == 0
+varnish v1 -expect cache_miss == 0
+varnish v1 -expect cache_hit == 0
+
+client c1 -run
+delay .1
+
+varnish v1 -expect n_object == 1
+varnish v1 -expect cache_miss == 1
+varnish v1 -expect cache_hit == 2

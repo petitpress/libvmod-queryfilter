@@ -397,20 +397,23 @@ vmod_filterparams(req_ctx* sp, const char* uri, const char* params_in, unsigned 
             /* After the first param, swap the separator: */
             sep = '&';
 
-            /* If arrays are not enabled (default), we just break after the
-             * first match to avoid unnecessary checks. However, for arrays it
-             * is necessary to keep iterating through the list to find
-             * additional matches. A side effect of this is that all elements of
-             * a given array will be rewritten in sequence next to each other in
-             * the output array: */
-            if( !arrays_enabled ) {
+            /* Scalar filters break after the first match so that duplicate
+             * params (e.g. ?date=old&date=new) are deduplicated to a stable
+             * cache key.  Array filters (e.g. urls[]) must keep iterating to
+             * collect all elements. */
+            if( !arrays_enabled || strchr(filter_name, '[') == NULL ) {
                 break;
             }
         };
     };
 
 release_okay:
-    WS_Release(workspace, (new_uri_end-new_uri));
+    /* Include the null terminator in the release (+1).  sprintf writes '\0'
+     * at new_uri_end but doesn't count it, so without +1 ws->f lands on that
+     * byte and the next workspace allocation (e.g. a VCL syslog string concat)
+     * overwrites it. hash_data() then walks past the intended end of req.url
+     * and produces an inconsistent hash, causing spurious cache misses. */
+    WS_Release(workspace, (new_uri_end-new_uri) + 1);
     return new_uri;
 
 release_bail:

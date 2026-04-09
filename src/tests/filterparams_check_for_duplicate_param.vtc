@@ -1,0 +1,48 @@
+varnishtest "Test queryfilter vmod: duplicate params - first occurrence wins"
+
+server s1 {
+	# Only one backend request expected - all 3 client requests should
+	# normalize to the same cache key (?date=2016-08-14)
+	rxreq
+	expect req.url == "/archive?date=2016-08-14"
+	txresp
+} -start
+
+varnish v1 -vcl+backend {
+	import std;
+	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+
+	sub vcl_hash {
+		std.syslog(180, "queryfilter before: " + req.url);
+		set req.url = queryfilter.filterparams(req.url, "date", false);
+		std.syslog(180, "queryfilter after: " + req.url);
+	}
+} -start
+
+client c1 {
+	# First request - first value (2016-08-14) wins
+	txreq -url "/archive?date=2016-08-14&date=2016-08-10"
+	rxresp
+	expect resp.status == 200
+
+	# Same first date, different trailing date - normalizes to same cache key
+	txreq -url "/archive?date=2016-08-14&date=2025-03-25"
+	rxresp
+	expect resp.status == 200
+
+	# Three duplicates - first one still wins
+	txreq -url "/archive?date=2016-08-14&date=2020-01-01&date=2021-06-15"
+	rxresp
+	expect resp.status == 200
+}
+
+varnish v1 -expect n_object == 0
+varnish v1 -expect cache_miss == 0
+varnish v1 -expect cache_hit == 0
+
+client c1 -run
+delay .1
+
+varnish v1 -expect n_object == 1
+varnish v1 -expect cache_miss == 1
+varnish v1 -expect cache_hit == 2

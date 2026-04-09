@@ -99,11 +99,27 @@ set req.url = queryfilter.filterparams(req.url, "id,q,vals[]", true);
 ```
 
 #### Query Arrays
-When query arrays are disabled, libvmod-queryfilter assumes query parameters are
-individual name/value pairs (e.g. `a=1&b=2...`). Support for arrays in query
-parameters - e.g. `a[]=1&a[]=2...` or `a[0]=1&a[1]=2...` - can be enabled by passing `true` for the `arrays_enabled`
-argument. When this option is enabled, array parameters will be
-preserved - in order - in the output URI.
+RFC 3986 does not define semantics for duplicate query parameters or array
+notation. The `[]` bracket convention (e.g. `a[]=1&a[]=2`) is a PHP-originated
+de facto standard adopted by many web frameworks.
+
+**`arrays_enabled=false` (default)**
+
+All parameters are treated as individual scalar name/value pairs. When the same
+parameter name appears more than once, only the **first** occurrence is kept and
+the rest are dropped, producing a stable, deduplicated cache key.
+
+**`arrays_enabled=true`**
+
+Deduplication is decided **per filter entry**:
+
+- **Scalar filters** (no `[` in the filter name, e.g. `"date"`, `"id"`) — same
+  as disabled: first occurrence wins, duplicates are dropped.
+- **Array filters** (filter name contains `[`, e.g. `"vals[]"`) — all
+  occurrences are collected and preserved in order in the output URI.
+
+This allows a mixed filter list such as `"date,id,vals[]"` to correctly
+deduplicate scalar params while collecting all elements of an array param.
 
 The module supports both traditional array notation (`item[]=value`) and
 indexed array notation (`item[0]=value`, `item[1]=value`, etc.). Both notations
