@@ -8,17 +8,15 @@
 #-----------------------------
 #           Init:
 #-----------------------------
-AC_PREREQ(2.59)
+AC_PREREQ([2.73])
 AC_COPYRIGHT([Copyright 2014-2020 The New York Times Company])
-AC_INIT([libvmod-queryfilter], [1.0.1],
-        [code@nytimes.com],[libvmod-queryfilter],
-        [https://github.com/NYTimes/libvmod-queryfilter])
+AC_INIT([libvmod-queryfilter],[1.0.1],[code@nytimes.com],[libvmod-queryfilter],[https://github.com/NYTimes/libvmod-queryfilter])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(src/vmod_queryfilter.vcc)
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_TARGET
 AC_LANG(C)
-AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 AM_INIT_AUTOMAKE([foreign])
 
 #-----------------------------
@@ -36,13 +34,13 @@ AC_SUBST([PACKAGE_SUMMARY],["Simple Varnish query filter/sort VMOD"])
 #         Programs:
 #-----------------------------
 AC_PROG_CC
-AC_PROG_CC_C99
+AC_REQUIRE(AC_PROG_CC)
 AS_IF([test "x$ac_cv_prog_cc_c99" = "xno"],[
 	AC_MSG_ERROR([Could not find a C99 compatible compiler])
 ])
 AC_PROG_CPP
 AC_PROG_INSTALL
-AC_PROG_LIBTOOL
+LT_INIT
 AC_PROG_MAKE_SET
 AC_PROG_AWK
 AC_PROG_CC
@@ -53,6 +51,15 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
 # Check for rst utilities
+AC_ARG_WITH([rst2man],
+    [
+        AS_HELP_STRING(
+            [--with-rst2man=PATH],
+            [Location of rst2man (auto)])
+    ],
+    [RST2MAN="$withval"],
+    [AC_CHECK_PROGS(RST2MAN, [rst2man rst2man.py], [])])
+
 AC_ARG_VAR([MD2MAN],
     [path to the m2dman tool used to build man pages (optional)])
 AC_PATH_PROG(MD2MAN, [md2man-roff],[no])
@@ -74,7 +81,11 @@ AC_CHECK_PROGS([PYTHON],
 #           Headers:
 #-----------------------------
 AC_CHECK_HEADERS([stdlib.h string.h])
-AC_HEADER_STDC
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_CHECK_HEADERS([sys/stdlib.h])
 
 #-----------------------------
@@ -91,24 +102,15 @@ AC_CHECK_FUNCS([strchr])
 #-----------------------------
 #           Varnish:
 #-----------------------------
-AX_CHECK_VARNISH_VMOD_DEV([
-    AC_MSG_NOTICE([Varnish build environment okay.])
-],[
-   AC_MSG_ERROR([Unable to find required Varnish build environment.])
-])
+m4_ifndef([VCACHE_REQUIRE], AC_MSG_ERROR([Need varnish.m4 / vinyl.m4 -- see README.rst]))
 
-AC_DEFINE_UNQUOTED(
-    [VARNISH_API_MAJOR],
-    [$VARNISH_API_MAJOR],
-    [Varnish API major version])
+VCACHE_REQUIRE(
+    [[varnish], [9.1]],
+    [[vinyl], [9.1]])
+VCACHE_VMODS([queryfilter])
 
-AC_DEFINE_UNQUOTED(
-    [VARNISH_API_MINOR],
-    [$VARNISH_API_MINOR],
-    [Varnish API minor version])
-
-AM_CONDITIONAL([VARNISHSRC_3_X],[test "x$VARNISH_API_MAJOR" = "x3"])
-
+VMOD_TESTS="$(cd $srcdir/src && echo tests/*.vtc)"
+AC_SUBST(VMOD_TESTS)
 
 #-----------------------------
 #          Output:

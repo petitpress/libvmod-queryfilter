@@ -25,47 +25,7 @@
 #include <stdint.h>
 #include <ctype.h>
 
-/*--- Varnish 3.x: ---*/
-#if VARNISH_API_MAJOR == 3
-#include "vrt.h"
-#include "vcc_if.h"
-#include "cache.h"
-typedef struct sess req_ctx;
-#endif /* VARNISH_API_MAJOR == 3 */
-
-/*--- Varnish 4.x and 5.x ---*/
-#if (VARNISH_API_MAJOR == 4 || VARNISH_API_MAJOR == 5 )
-#include "vrt.h"
-#include "vcc_if.h"
-#include "vre.h"
-#include "cache/cache.h"
-typedef const struct vrt_ctx req_ctx;
-#endif /* (VARNISH_API_MAJOR == 4 || VARNISH_API_MAJOR == 5 ) */
-
-/*--- Varnish 6.x, 7.x and 8.x ---*/
-#if (VARNISH_API_MAJOR == 6 || VARNISH_API_MAJOR == 7 || VARNISH_API_MAJOR == 8)
-#include "cache/cache.h"
-#include "vcl.h"
-#include "vre.h"
-#include "vas.h"
-#include "vsb.h"
-#include "vcc_if.h"
-typedef const struct vrt_ctx req_ctx;
-#endif /* (VARNISH_API_MAJOR == 6 || VARNISH_API_MAJOR == 7 || VARNISH_API_MAJOR == 8) */
-
-/* WS_Reserve was deprecated in Varnish 6.3.0: */
-#if (VARNISH_API_MAJOR < 6) || (VARNISH_API_MAJOR == 6 && VARNISH_API_MINOR < 3)
-#define WS_ReserveAll(ws) \
-    WS_Reserve(ws, 0)
-#endif /* Varnish Version >= 6.3 */
-
-/* WS_Reservation() was introduced in Varnish 6.4 to replace direct ws->f
- * access (WS_Front() was removed in 7.0). For Varnish < 6.4, define a shim
- * via the still-public ws->f member. */
-#if (VARNISH_API_MAJOR < 6) || (VARNISH_API_MAJOR == 6 && VARNISH_API_MINOR < 4)
-#define WS_Reservation(ws) ((ws)->f)
-#endif
-
+#include "cache/cache_int.h"
 
 /** Alignment macros ala varnish internals: */
 #define PALIGN_SIZE     (sizeof(void*))
@@ -299,13 +259,13 @@ strtmp_append(char** ws_free, unsigned* remain, const char* str_in)
  * 4. On success, release all but the space occupied by new_uri; on failure
  *    release all workspace memory that was allocated.
  *
- * @param sp Varnish Session Pointer
+ * @param ctx Varnish Context Pointer
  * @param uri The input URI
  * @param params_in a comma separated list of query parameters to *include*
  * @return filtered URI on success; NULL on failure
  */
 const char*
-vmod_filterparams(req_ctx* sp, const char* uri, const char* params_in, unsigned arrays_enabled)
+vmod_filterparams(VRT_CTX, const char* uri, const char* params_in, unsigned arrays_enabled)
 {
     char* saveptr;
     char* new_uri;
@@ -313,7 +273,7 @@ vmod_filterparams(req_ctx* sp, const char* uri, const char* params_in, unsigned 
     char* query_str;
     char* params;
     char* ws_free;
-    struct ws* workspace = sp->ws;
+    struct ws* workspace;
     query_param_t* head;
     query_param_t* current;
     const char* filter_name;
@@ -321,6 +281,11 @@ vmod_filterparams(req_ctx* sp, const char* uri, const char* params_in, unsigned 
     int no_param;
     unsigned ws_remain;
     char sep = '?';
+
+    CHECK_OBJ_NOTNULL(ctx, VRT_CTX_MAGIC);
+    CHECK_OBJ_NOTNULL(ctx->ws, WS_MAGIC);
+
+    workspace = ctx->ws;
 
     /* Right off, do nothing if there's no query string: */
     query_str = strchr(uri, '?');

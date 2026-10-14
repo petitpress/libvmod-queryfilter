@@ -1,10 +1,10 @@
 #!/bin/sh
 
 warn() {
-	echo "WARNING: $*" 1>&2
+	echo "WARNING: $@" 1>&2
 }
 
-case $(uname -s) in
+case `uname -s` in
 Darwin)
 	LIBTOOLIZE=glibtoolize
 	;;
@@ -18,11 +18,11 @@ SunOS)
 	LIBTOOLIZE=libtoolize
 	;;
 *)
-	warn "unrecognized platform: $(uname -s)"
+	warn "unrecognized platform:" `uname -s`
 	LIBTOOLIZE=libtoolize
 esac
 
-automake_version=$(automake --version | tr ' ' '\n' | grep -E '^[0-9]\.[0-9a-z.-]+')
+automake_version=`automake --version | tr ' ' '\n' | grep -E '^[0-9]\.[0-9a-z.-]+'`
 if [ -z "$automake_version" ] ; then
 	warn "unable to determine automake version"
 else
@@ -35,11 +35,17 @@ else
 	esac
 fi
 
+dataroot=$(pkg-config --variable=datarootdir varnishapi 2>/dev/null || pkg-config --variable=datarootdir vinylapi 2>/dev/null)
+if [ -z "$dataroot" ] ; then
+	cat >&2 <<'EOF'
+Package varnishapi / vinylapi was not found in the pkg-config search path.
+Perhaps you should add the directory containing it to the PKG_CONFIG_PATH
+environment variable
+EOF
+	exit 1
+fi
 set -ex
-
-mkdir -p m4
-
-aclocal -I m4
+aclocal -I m4 -I ${dataroot}/aclocal
 $LIBTOOLIZE --copy --force
 autoheader
 automake --add-missing --copy --foreign

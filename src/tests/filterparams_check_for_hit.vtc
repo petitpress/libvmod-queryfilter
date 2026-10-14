@@ -7,7 +7,7 @@ server s1 {
 
 varnish v1 -vcl+backend {
 	import std;
-	import queryfilter from "${vmod_topbuild}/src/.libs/libvmod_queryfilter.so";
+	import ${vmod_queryfilter};
 
 	sub vcl_hash {
 		std.syslog(180, "queryfilter before: " + req.url);

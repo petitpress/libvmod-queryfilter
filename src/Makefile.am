@@ -4,50 +4,38 @@
 #
 #=============================================================================
 
-AM_CPPFLAGS = \
-    @VARNISH_CFLAGS@ \
-    -I@top_builddir@/include
+AM_CPPFLAGS = $(VCACHEAPI_CFLAGS)
 
-vmoddir = @VARNISH_VMODDIR@
+#vmoddir = @VARNISH_VMODDIR@
+#vmod_LTLIBRARIES = libvmod_queryfilter.la
+#
+#libvmod_queryfilter_la_LDFLAGS = \
+#    @VARNISH_LIBS@ \
+#    -module \
+#    -export-dynamic \
+#    -avoid-version \
+#    -shared
+
 vmod_LTLIBRARIES = libvmod_queryfilter.la
 
-libvmod_queryfilter_la_LDFLAGS = \
-    @VARNISH_LIBS@ \
-    -module \
-    -export-dynamic \
-    -avoid-version \
-    -shared
-
 libvmod_queryfilter_la_SOURCES = \
-	vcc_if.c \
-	vcc_if.h \
+	vcc_queryfilter_if.c \
+	vcc_queryfilter_if.h \
 	vmod_queryfilter.c
 
-if VARNISHSRC_3_X
-vcc_if.c vcc_if.h: @top_srcdir@/src/vmod_queryfilter3.vcc
-	@PYTHON@ @VMODTOOL@ @top_srcdir@/src/vmod_queryfilter3.vcc
-else
-vcc_if.c vcc_if.h: @top_srcdir@/src/vmod_queryfilter.vcc
-	@PYTHON@ @VMODTOOL@ @top_srcdir@/src/vmod_queryfilter.vcc
-endif
+dist_man_MANS = vmod_queryfilter.3
 
-VMOD_TESTS = @abs_srcdir@/tests/*.vtc
-.PHONY: $(VMOD_TESTS)
+@BUILD_VMOD_QUERYFILTER@
 
-@abs_srcdir@/tests/*.vtc:
-	PATH="@VARNISHD_PATH@:@VARNISHTEST_PATH@:${PATH}" \
-	@VARNISHTEST@ \
-        -Dvarnish_source=@VARNISHSRC@ \
-        -Dvarnishd=@VARNISHD@  \
-        -Dvmod_topbuild=@abs_top_builddir@ $@
+AM_TESTS_ENVIRONMENT = \
+        PATH="$(VMOD_TEST_PATH)" \
+        LD_LIBRARY_PATH="$(VCACHE_LIBRARY_PATH)"
+TEST_EXTENSIONS = .vtc
+VTC_LOG_COMPILER = vtest -E@VTESTEXT@
+AM_VTC_LOG_FLAGS = -v -Dvmod_queryfilter="$(VMOD_QUERYFILTER)"
 
-check: $(VMOD_TESTS)
+TESTS = @VMOD_TESTS@
 
 EXTRA_DIST = \
 	vmod_queryfilter.vcc \
 	$(VMOD_TESTS)
-
-CLEANFILES = @builddir@/vcc_if.c @builddir@/vcc_if.h
-
-## EOF
-
